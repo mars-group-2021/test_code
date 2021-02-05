@@ -1,3 +1,7 @@
+# MARS Reverse-Engineering
+# University of Maryland GLobal Campus
+# Authors: Alex Mancera, 
+
 import datetime as dt
 import os
 
