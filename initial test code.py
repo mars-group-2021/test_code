@@ -54,15 +54,18 @@ with open(patient+'.csv','r') as csv, open(patient+'_comb_dat.csv','w') as outpu
         cols+=hdr_dat[key]['label']+','
     output.write(cols[:-1]+'\n')
 
-    # values 2 lines and 1 line behind current value, respectively
-    val2back = 0.0
-    val1back = 0.0
-    cur_val  = 0.0
-    count    = 0
-    lnum     = 0
+    # values 2 lines and 1 line behind current line values, respectively
+    vals2back = []
+    vals1back = []
+    cur_vals  = []
+    
+    count = 0 # loop counter
+    lnum  = 0 # integer line number
     
     last_line_time=''
     two_ms = dt.timedelta(milliseconds=2)
+    
+    # process entire csv file line by line
     for line in csv:
         # find line number in output file
         lnum = output.tell()
@@ -77,38 +80,42 @@ with open(patient+'.csv','r') as csv, open(patient+'_comb_dat.csv','w') as outpu
             last_line_time = curr_line_time
             output.write(line)
         else:
-            #time stamp exists, but check for value in previous line
-            if ((count >= 3) and (abs(val1back) < 0.00000001)):
-                # average/linear interpolate for 0 value
-                val1back = avg2(val2back,cur_val)
+            # time stamp exists, proceed with current line and process empty value column(s)
+            last_line_time += two_ms # advance timestamp
+            rest_line = ''           # rest of line past timestamp, value(s) for 1+ columns
 
-            output.seek(lnum-1)
-            output.write(last_line_time+str(val1back)+'\n')
-
-            val2back = val1back
-            val1back = cur_val
-
-            # proceed with current line
-            last_line_time += two_ms
-            rest_line = ''
             for n in range(1,num_cols_start):
+                # fill in value or 0 for each column past timestamp
                 rest_line += ', '+str(line.split(', ')[n].strip() or 0) # fills in blanks with 0 where not data was recorded
-            if aligned == 'no' and len(line.split(', ')) < num_nodes +1: # fills in empty columns
+
+            if aligned == 'no' and len(line.split(', ')) < num_nodes+1: # fills in empty columns
                 for n in range(num_cols_mis):
                     rest_line += ', 0' # fills in blanks with 0 where columns are empty
-                    
-            # thank you Stack Overflow:
-            # https://stackoverflow.com/questions/30112357/
-            #    typeerror-descriptor-strftime-requires-a-datetime-date-object-but-received
-            print(last_line_time, val2back, val1back, cur_val)
-            #out_date_obj = dt.datetime.strptime(last_line_time, '%Y-%m-%d %H:%M:%S.%f %z')
-            #out_date_str = dt.datetime.strftime(out_date_obj,   '%Y-%m-%d %H:%M:%S.%f %z')
-            #output.write(out_date_str[:-2].replace('000 ',' ')+':'+out_date_str[-2:]+rest_line+'\n') #prints out lines
-            #out_date = dt.datetime.strptime(last_line_time,'%Y-%m-%d %H:%M:%S.%f')
 
+            # Check for value=0 in previous line
+            elif (count >= 3):
+                # Check and replace 0 values if any across line
+                for n in range(1,num_cols_start-1):
+                    cur_vals += str(line.split(', ')[n].strip())
+                    if (abs(vals1back[n]) < 0.00000001):
+                        # average/linear interpolate for 0 value
+                        vals1back[n] = avg2(vals2back[n],cur_vals[n])
+                        output.seek(lnum-1) # overwrite last line's 0 value
+                    # end if average calls
+                    output.write(str(last_line_time)+str(vals1back[n])+'\n')
+                # end for search for 0 values through every column
+            elif (count == 1):
+                vals2back = rest_line
+                vals1back = rest_line
+            elif (count >= 2):
+                vals2back = vals1back
+                vals1back = cur_vals
+            # endif - checks for timestamp and zero value(s)
+        
             out_date = dt.datetime.strftime(last_line_time,'%Y-%m-%d %H:%M:%S.%f %z')
             output.write(out_date[:-2].replace('000 ',' ')+':'+out_date[-2:]+rest_line+'\n') #prints out lines
-
+        # end if checks
+    # end for "line in csv"
             
 print('done')
 
