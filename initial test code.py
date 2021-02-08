@@ -74,7 +74,7 @@ def hdr_data(hdr):
     nodes_4ms = []
     for line in hdr:
         l_split = line.strip('{').strip('\n').strip('}').split(', ')
-        hdr_dat[node] = {}
+        hdr_dat[node] = {} #creates new nested dictionary with each line read in .hdr file
         for item in l_split:
             hdr_dat[node][item.split()[0].strip(':')] = item.split()[1]
             if item.split()[0].strip(':') == 'period' and item.split()[1] == '4ms':
@@ -104,11 +104,11 @@ if __name__ == '__main__':
 
 
 # determines if csv is pre-aligned from the beginning
-aligned='' #straightforward
-num_nodes = len(hdr)
-num_cols_start = len((csv[0]).split(','))
-num_cols_mis = num_nodes + 1 - num_cols_start
-if  num_cols_mis == 0:
+aligned=''
+num_nodes = len(hdr) # number of line in .hdr file
+num_cols_start = len((csv[0]).split(',')) # number of columns at the beginning of .csv file
+num_cols_mis = num_nodes + 1 - num_cols_start # missing number of columns at the beginning of .csv file
+if  num_cols_mis == 0:  # if no columns missing 
     print('csv file pre-aligned')
     aligned='yes'
 else:
@@ -118,43 +118,44 @@ else:
 
 print('Processing output file')
 with open(patient+'_comb_dat.csv','w') as output:
-# writes first line (column names) to out file
+    
+    # writes header line (column names) to out file
     output.write('Time,')
     cols = ''
     for key in hdr_dat:
         cols+=hdr_dat[key]['label']+','
     output.write(cols[:-1]+'\n')
-
+    
+    #generates timestamp data
     last_line_time=''
     two_ms = dt.timedelta(milliseconds=2)
     temp_line_count = 0
     prev_line = []
     temp_line = []
     for line in csv:
+        print_line = [] 
         if not line.startswith(','): # if timestamp already given
-            curr_line_time = dt.datetime.strptime(line.split(', ')[0], '%Y-%m-%d %H:%M:%S.%f %z')
-            if last_line_time != '' and curr_line_time != last_line_time + two_ms: # checks for missing time
+            curr_line_time = dt.datetime.strptime(line.split(', ')[0], '%Y-%m-%d %H:%M:%S.%f %z') # current time is kept as provided
+            if last_line_time != '' and curr_line_time != last_line_time + two_ms: # checks for time gap
                 print('Time gap at',line.split(', ')[0])
-            last_line_time = curr_line_time
-        else:
-            last_line_time += two_ms
+            last_line_time = curr_line_time # saves current time for reference on next line
+        else: # if timestamp not already given
+            last_line_time += two_ms # adds 2ms to saved reference time
+        out_date = dt.datetime.strftime(last_line_time,'%Y-%m-%d %H:%M:%S.%f %z')
+        print_line.append(out_date[:-2].replace('000 ',' ')+':'+out_date[-2:]) # saves timestamp data to print_line list
             
-        print_line = []
+        # generates printed lines to outfile after header line
         for n in range(1,num_cols_start):
-            print_line.append(str(line.split(', ')[n].strip() or 0)) # fills in blanks with 0 where not data was recorded
+            print_line.append(str(line.split(', ')[n].strip() or 0)) # fills in blanks with recorded values or 0 where data was not recorded
         if aligned == 'no':
             for n in range(num_cols_mis):
-                if len(line.split(', ')) < num_nodes +1: # fills in empty columns
+                if len(line.split(', ')) < num_nodes +1: # if empty columns exist
                     print_line.append('0') # fills in blanks with 0 where columns are empty
                 else:
-                    print_line.append(str(line.split(', ')[num_cols_start+n].strip() or 0))
-        out_date = dt.datetime.strftime(last_line_time,'%Y-%m-%d %H:%M:%S.%f %z')
-        print_line.insert(0,out_date[:-2].replace('000 ',' ')+':'+out_date[-2:])
+                    print_line.append(str(line.split(', ')[num_cols_start+n].strip() or 0)) # fills in blanks with recorded values or 0 where data was not recorded
         
-        if len(nodes_4ms) > 0:
-            if not line.strip():
-                print('here')
-            if temp_line_count == 1:
+        if len(nodes_4ms) > 0: #if there are any 4ms nodes
+            if temp_line_count == 1: # if blank line in 4ms node exists
                 for node in nodes_4ms:
                     if len(prev_line) > 0 :
                         avg_val = round(Decimal((float(prev_line[node])+float(print_line[node]))/2),3)
@@ -170,7 +171,7 @@ with open(patient+'_comb_dat.csv','w') as output:
                 temp_line_count = 0
                 
             for node in nodes_4ms:
-                if print_line[node] == '0':
+                if print_line[node] == '0':  # if blank line in 4ms node exists
                     temp_line = print_line
                     temp_line_count +=1
                     break
