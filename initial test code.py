@@ -1,61 +1,130 @@
 # MARS Reverse-Engineering
-# University of Maryland GLobal Campus
-# Authors: Alex Mancera, Stephen Panossian (avg2)
+# University of Maryland Global Campus
+# Authors: Alex Mancera, Stephen Panossian, Analia Treviño-Flitton
 
 import datetime as dt
 import os
 from decimal import Decimal
 
 
-exists = 0
-cur_dir= os.listdir(os.getcwd())
-while exists == 0:
-    patient=input('Enter patient name (for now a,b, or c): ')
-    if (patient+'.csv' and patient+'.hdr') in cur_dir:
-        print('Both csv and hdr files found')
-        exists=1
-    else:
-        print('not found')
+
+
+
+
+
+def cat_file_parser(cat_file):
+    del_num=0
+    hdr =[]
+    intro = open(cat_file, 'r').readlines()
+    ## Split the hdr contents into own list
+    for i in range(len(intro)):
+        if intro[i].startswith('{id:'):
+            hdr.append(intro[i])
+            if i > del_num:
+                del_num = i
+
+## delete hdr contents from csv list
+    for j in range(0,(del_num+1)):
+        (intro.pop(0))
+
+## Pack lists into tuples & return
+    contents_tup = (hdr, intro)
+    return contents_tup
+
+
+
+
+## Opens files & returns them to global lists
+def file_opener(patient):
+
+    exists = 0
+    cur_dir= os.listdir(os.getcwd())
+
+    while exists == 0:
+        if (patient+'.csv' and patient + '.hdr') in cur_dir:
+            print('Both csv and hdr files found')
+            hdr = open(patient + '.hdr', 'r')
+            csv = open(patient + '.csv', 'r')
+            contents = (hdr, csv)
+            exists=1
+
+        elif (patient+'.cat') in cur_dir:
+            print("The csv and hdr file have been found in a concatenated file")
+            contents = cat_file_parser(patient + '.cat')
+            exists=1
+
+
+        elif (patient+'.csv') in cur_dir:
+           contents = cat_file_parser(patient + '.csv')
+           exists=1
+
+        else:
+            print('not found')
+            #reprompt?
+
+    return contents
+
+
+
+
+def hdr_data(hdr):
+    # parses hdr data and saves in a nested dictionary
+    hdr_dat = {}
+    node = 1
+    nodes_4ms = []
+    for line in hdr:
+        l_split = line.strip('{').strip('\n').strip('}').split(', ')
+        hdr_dat[node] = {}
+        for item in l_split:
+            hdr_dat[node][item.split()[0].strip(':')] = item.split()[1]
+            if item.split()[0].strip(':') == 'period' and item.split()[1] == '4ms':
+                nodes_4ms.append(node)
+        node += 1
+
+    hdr_info=(hdr_dat, node, nodes_4ms)
+
+    return  hdr_info
+
+
+
+
+## Program begins
+if __name__ == '__main__':
+    patient = input('Enter patient name (for now a,b, or c): ')
+
+    # Call file opener, returns tuple of the hdr & csv lists
+    contents = file_opener(patient)
+    # Unpack tuple
+    (hdr, csv) = contents
+
+    ## Call hdr_data- dictionary builder & node info
+    hdr_info = hdr_data(hdr)
+    (hdr_dat, node, nodes_4ms) = hdr_info
+
+
 
 # determines if csv is pre-aligned from the beginning
 aligned='' #straightforward
-with open(patient+'.hdr','r') as hdr, open(patient+'.csv','r') as csv:
-    num_nodes = len(hdr.readlines())
-    num_cols_start = len(csv.readline().split(','))
-    num_cols_mis = num_nodes + 1 - num_cols_start
-    if  num_cols_mis == 0:
-        print('csv file pre-aligned')
-        aligned='yes'
-    else:
-        print('csv file not pre-aligned')
-        aligned='no'
+num_nodes = len(hdr)
+num_cols_start = len((csv[0]).split(','))
+num_cols_mis = num_nodes + 1 - num_cols_start
+if  num_cols_mis == 0:
+    print('csv file pre-aligned')
+    aligned='yes'
+else:
+    print('csv file not pre-aligned')
+    aligned='no'
 
-# parces hdr data and saves in a nested dictionary
-hdr_dat={}
-node=1
-nodes_4ms=[]
-with open(patient+'.hdr','r') as hdr:
-    for line in hdr:
-        l_split=line.strip('{').strip('\n').strip('}').split(', ')
-        hdr_dat[node]={}
-        for item in l_split:
-            hdr_dat[node][item.split()[0].strip(':')]=item.split()[1]
-            if item.split()[0].strip(':') == 'period' and item.split()[1] == '4ms':
-                nodes_4ms.append(node)
-        node+=1
-        
+
 print('Processing output file')
-
-with open(patient+'.csv','r') as csv, open(patient+'_comb_dat.csv','w') as output:
-
-    # writes first line (column names) to out file
+with open(patient+'_comb_dat.csv','w') as output:
+# writes first line (column names) to out file
     output.write('Time,')
     cols = ''
     for key in hdr_dat:
         cols+=hdr_dat[key]['label']+','
     output.write(cols[:-1]+'\n')
 
-    
     last_line_time=''
     two_ms = dt.timedelta(milliseconds=2)
     temp_line_count = 0
