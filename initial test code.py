@@ -4,6 +4,8 @@
 
 import datetime as dt
 import os
+from decimal import Decimal
+
 
 exists = 0
 cur_dir= os.listdir(os.getcwd())
@@ -76,15 +78,17 @@ with open(patient+'.csv','r') as csv, open(patient+'_comb_dat.csv','w') as outpu
                 if len(line.split(', ')) < num_nodes +1: # fills in empty columns
                     print_line.append('0') # fills in blanks with 0 where columns are empty
                 else:
-                    print_line.append(line.split(', ')[num_nodes-n].strip())               
+                    print_line.append(str(line.split(', ')[num_cols_start+n].strip() or 0))
         out_date = dt.datetime.strftime(last_line_time,'%Y-%m-%d %H:%M:%S.%f %z')
         print_line.insert(0,out_date[:-2].replace('000 ',' ')+':'+out_date[-2:])
         
         if len(nodes_4ms) > 0:
+            if not line.strip():
+                print('here')
             if temp_line_count == 1:
                 for node in nodes_4ms:
-                    if len(prev_line) > 0 and print_line[node] != '0':
-                        avg_val = (float(prev_line[node])+float(print_line[node]))/2
+                    if len(prev_line) > 0 :
+                        avg_val = round(Decimal((float(prev_line[node])+float(print_line[node]))/2),3)
                         temp_line[node] = str(avg_val)
                     else:
                         temp_line[node] = print_line[node]
@@ -93,6 +97,7 @@ with open(patient+'.csv','r') as csv, open(patient+'_comb_dat.csv','w') as outpu
                     output.write(', '.join(prev_line)+'\n')
                     prev_line = []
                 output.write(', '.join(temp_line)+'\n')
+                
                 temp_line_count = 0
                 
             for node in nodes_4ms:
@@ -105,6 +110,6 @@ with open(patient+'.csv','r') as csv, open(patient+'_comb_dat.csv','w') as outpu
                     
         else:
             output.write(', '.join(print_line)+'\n') #prints out lines
+    output.write(', '.join(print_line)+'\n')
 
 print('done')
-
