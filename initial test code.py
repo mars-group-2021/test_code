@@ -231,6 +231,7 @@ for key, items in file_dat.items():
     if key != 'Time':
         fig.add_trace(go.Scatter(x=file_dat['Time'][0::4],y=file_dat[key][0::4],name='Unedited '+key, line=dict(color='rgb(251,180,174)')),row=plots, col=1)
         fig.add_trace(go.Scatter(x=file_dat['Time'][0::4],y=remove_baseline_wander(file_dat[key], 2000.0)[0::4],name='Corrected '+key, line=dict(color='royalblue')),row=plots, col=1)
+        file_dat[key].clear()
         fig.update_yaxes(title_text=key, row=plots, col=1)
         plots += (-1)
 file_dat.clear()
