@@ -106,7 +106,7 @@ if __name__ == '__main__':
     hdr_info = hdr_data(hdr)
     (hdr_dat, node, nodes_4ms) = hdr_info
 
-
+hdr.close()
 
 # determines if csv is pre-aligned from the beginning
 aligned=''
@@ -130,7 +130,8 @@ for key in hdr_dat:
         file_dat[hdr_dat[key]['label']+'(2)']=[]
     else:
         file_dat[hdr_dat[key]['label']]=[]
-       
+hdr_dat.clear()
+
 last_line_time=''
 two_ms = dt.timedelta(milliseconds=2)
 csv.seek(0)
@@ -160,8 +161,7 @@ for line in csv:
                 file_dat[list(file_dat)[node]][-2] = (file_dat[list(file_dat)[node]][-3]+file_dat[list(file_dat)[node]][-1])/2
                     
 print('Done pulling data')
-
-
+csv.close()
 
 
 # direct copy from HeartPy source code (start)------------------
@@ -233,7 +233,7 @@ for key, items in file_dat.items():
         fig.add_trace(go.Scatter(x=file_dat['Time'][0::4],y=remove_baseline_wander(file_dat[key], 2000.0)[0::4],name='Corrected '+key, line=dict(color='royalblue')),row=plots, col=1)
         fig.update_yaxes(title_text=key, row=plots, col=1)
         plots += (-1)
-
+file_dat.clear()
 fig.update_layout(title_text='Data from '+patient+'.csv and '+patient+'.hdr')
 
 print('Printing graph')
