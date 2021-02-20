@@ -5,7 +5,12 @@
 import datetime as dt
 import os
 from decimal import Decimal
-
+import numpy as np
+import heartpy as hp
+from scipy.signal import butter, filtfilt, iirnotch, savgol_filter
+import plotly
+from plotly.subplots import make_subplots
+import plotly.graph_objs as go
 
 
 
@@ -116,70 +121,121 @@ else:
     aligned='no'
 
 
-print('Processing output file')
-with open(patient+'_comb_dat.csv','w') as output:
-    
-    # writes header line (column names) to out file
-    output.write('Time,')
-    cols = ''
-    for key in hdr_dat:
-        cols+=hdr_dat[key]['label']+','
-    output.write(cols[:-1]+'\n')
-    
-    #generates timestamp data
-    last_line_time=''
-    two_ms = dt.timedelta(milliseconds=2)
-    temp_line_count = 0
-    prev_line = []
-    temp_line = []
-    for line in csv:
-        print_line = [] 
-        if not line.startswith(','): # if timestamp already given
-            curr_line_time = dt.datetime.strptime(line.split(', ')[0], '%Y-%m-%d %H:%M:%S.%f %z') # current time is kept as provided
-            if last_line_time != '' and curr_line_time != last_line_time + two_ms: # checks for time gap
-                print('Time gap at',line.split(', ')[0])
-            last_line_time = curr_line_time # saves current time for reference on next line
-        else: # if timestamp not already given
-            last_line_time += two_ms # adds 2ms to saved reference time
-        out_date = dt.datetime.strftime(last_line_time,'%Y-%m-%d %H:%M:%S.%f %z')
-        print_line.append(out_date[:-2].replace('000 ',' ')+':'+out_date[-2:]) # saves timestamp data to print_line list
-            
-        # generates printed lines to outfile after header line
-        for n in range(1,num_cols_start):
-            print_line.append(str(line.split(', ')[n].strip() or 0)) # fills in blanks with recorded values or 0 where data was not recorded
-        if aligned == 'no':
-            for n in range(num_cols_mis):
-                if len(line.split(', ')) < num_nodes +1: # if empty columns exist
-                    print_line.append('0') # fills in blanks with 0 where columns are empty
-                else:
-                    print_line.append(str(line.split(', ')[num_cols_start+n].strip() or 0)) # fills in blanks with recorded values or 0 where data was not recorded
-        
-        if len(nodes_4ms) > 0: #if there are any 4ms nodes
-            if temp_line_count == 1: # if blank line in 4ms node exists
-                for node in nodes_4ms:
-                    if len(prev_line) > 0 :
-                        avg_val = round(Decimal((float(prev_line[node])+float(print_line[node]))/2),3)
-                        temp_line[node] = str(avg_val)
-                    else:
-                        temp_line[node] = print_line[node]
-                    
-                if len(prev_line)>0:
-                    output.write(', '.join(prev_line)+'\n')
-                    prev_line = []
-                output.write(', '.join(temp_line)+'\n')
-                
-                temp_line_count = 0
-                
-            for node in nodes_4ms:
-                if print_line[node] == '0':  # if blank line in 4ms node exists
-                    temp_line = print_line
-                    temp_line_count +=1
-                    break
-                else:
-                    prev_line = print_line
-                    
-        else:
-            output.write(', '.join(print_line)+'\n') #prints out lines
-    output.write(', '.join(print_line)+'\n')
+print('Collecting data')
 
-print('done')
+file_dat = {} 
+file_dat['Time'] = []
+for key in hdr_dat:
+    if hdr_dat[key]['label'] in file_dat:
+        file_dat[hdr_dat[key]['label']+'(2)']=[]
+    else:
+        file_dat[hdr_dat[key]['label']]=[]
+       
+last_line_time=''
+two_ms = dt.timedelta(milliseconds=2)
+for line in csv:
+    if not line.startswith(','): # if timestamp already given
+        curr_line_time = dt.datetime.strptime(line.split(', ')[0], '%Y-%m-%d %H:%M:%S.%f %z') # current time is kept as provided
+        if last_line_time != '' and curr_line_time != last_line_time + two_ms: # checks for time gap
+            print('Time gap at',line.split(', ')[0])
+        last_line_time = curr_line_time # saves current time for reference on next line
+    else: # if timestamp not already given
+        last_line_time += two_ms # adds 2ms to saved reference time
+    file_dat['Time'].append(last_line_time)
+
+    # generates printed lines to outfile after header line
+    for n in range(1,num_cols_start):
+        file_dat[list(file_dat)[n]].append(float(line.split(', ')[n].strip() or 0)) # fills in blanks with recorded values or 0 where data was not recorded
+    if aligned == 'no':
+        for n in range(num_cols_mis):
+            if len(line.split(', ')) < num_nodes +1: # if empty columns exist
+                file_dat[list(file_dat)[num_cols_start+n]].append(0) # fills in blanks with 0 where columns are empty
+            else:
+                file_dat[list(file_dat)[num_cols_start+n]].append(float((line.split(', ')[num_cols_start+n].strip() or 0))) # fills in blanks with recorded values or 0 where data was not recorded
+
+    if len(nodes_4ms) > 0: #if there are any 4ms nodes
+        for node in nodes_4ms:
+            if len(file_dat[list(file_dat)[node]])>3 and file_dat[list(file_dat)[node]][-2] == 0 and file_dat[list(file_dat)[node]][-1] != 0:
+                file_dat[list(file_dat)[node]][-2] = (file_dat[list(file_dat)[node]][-3]+file_dat[list(file_dat)[node]][-1])/2
+                    
+print('Done pulling data')
+
+
+
+
+# direct copy from HeartPy source code (start)------------------
+
+__all__ = ['filter_signal',
+           'hampel_filter',
+           'hampel_correcter',
+           'smooth_signal']
+
+def butter_lowpass(cutoff, sample_rate, order=2):
+    nyq = 0.5 * sample_rate
+    normal_cutoff = cutoff / nyq
+    b, a = butter(order, normal_cutoff, btype='low', analog=False)
+    return b, a
+def butter_highpass(cutoff, sample_rate, order=2):
+    nyq = 0.5 * sample_rate
+    normal_cutoff = cutoff / nyq
+    b, a = butter(order, normal_cutoff, btype='high', analog=False)
+    return b, a
+
+def butter_bandpass(lowcut, highcut, sample_rate, order=2):
+    nyq = 0.5 * sample_rate
+    low = lowcut / nyq
+    high = highcut / nyq
+    b, a = butter(order, [low, high], btype='band')
+    return b, a
+
+def filter_signal(data, cutoff, sample_rate, order=2, filtertype='highpass', return_top = False):       # changed 'lowpass' to 'highpass' for more accuracy
+    if filtertype.lower() == 'lowpass':
+        b, a = butter_lowpass(cutoff, sample_rate, order=order)
+    elif filtertype.lower() == 'highpass':
+        b, a = butter_highpass(cutoff, sample_rate, order=order)
+    elif filtertype.lower() == 'bandpass':
+        assert type(cutoff) == tuple or list or np.array, 'if bandpass filter is specified, \
+cutoff needs to be array or tuple specifying lower and upper bound: [lower, upper].'
+        b, a = butter_bandpass(cutoff[0], cutoff[1], sample_rate, order=order)
+    elif filtertype.lower() == 'notch':
+        b, a = iirnotch(cutoff, Q = 0.005, fs = sample_rate)
+    else:
+        raise ValueError('filtertype: %s is unknown, available are: \
+lowpass, highpass, bandpass, and notch' %filtertype)
+
+    filtered_data = filtfilt(b, a, data)
+    
+    if return_top:
+        return np.clip(filtered_data, a_min = 0, a_max = None)
+    else:
+        return filtered_data
+    
+def remove_baseline_wander(data, sample_rate, cutoff=0.05):
+    return filter_signal(data = data, cutoff = cutoff, sample_rate = sample_rate, filtertype='notch')
+
+
+# direct copy from HeartPy source code (end)------------------
+
+
+
+
+
+
+print('Plotting points')
+
+plots = len(file_dat)-1
+fig = make_subplots(rows=len(file_dat)-1, cols=1, shared_xaxes=True, vertical_spacing=0.02)
+
+for key, items in file_dat.items():
+    if key != 'Time':
+        fig.add_trace(go.Scatter(x=file_dat['Time'][0::4],y=file_dat[key][0::4],name='Unedited '+key, line=dict(color='rgb(251,180,174)')),row=plots, col=1)
+        fig.add_trace(go.Scatter(x=file_dat['Time'][0::4],y=remove_baseline_wander(file_dat[key], 2000.0)[0::4],name='Corrected '+key, line=dict(color='royalblue')),row=plots, col=1)
+        fig.update_yaxes(title_text=key, row=plots, col=1)
+        plots += (-1)
+
+fig.update_layout(title_text='Data from '+patient+'.csv and '+patient+'.hdr')
+
+print('Printing graph')
+plotly.offline.plot(fig, filename=patient+'_blc.html')
+
+print('Done')
