@@ -110,8 +110,8 @@ if __name__ == '__main__':
 
 # determines if csv is pre-aligned from the beginning
 aligned=''
-num_nodes = len(hdr) # number of line in .hdr file
-num_cols_start = len((csv[0]).split(',')) # number of columns at the beginning of .csv file
+num_nodes = len(hdr_dat) # number of line in .hdr file
+num_cols_start = len(csv.readline().split(',')) # number of columns at the beginning of .csv file
 num_cols_mis = num_nodes + 1 - num_cols_start # missing number of columns at the beginning of .csv file
 if  num_cols_mis == 0:  # if no columns missing 
     print('csv file pre-aligned')
@@ -133,6 +133,7 @@ for key in hdr_dat:
        
 last_line_time=''
 two_ms = dt.timedelta(milliseconds=2)
+csv.seek(0)
 for line in csv:
     if not line.startswith(','): # if timestamp already given
         curr_line_time = dt.datetime.strptime(line.split(', ')[0], '%Y-%m-%d %H:%M:%S.%f %z') # current time is kept as provided
