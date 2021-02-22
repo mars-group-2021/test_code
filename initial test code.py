@@ -91,6 +91,84 @@ def hdr_data(hdr):
     return  hdr_info
 
 
+def print_dict(dictionary, outval):
+    header = []
+    for key in dictionary:
+        header.append(key)
+    outval.write(", ".join(header)+'\n')
+    
+    print_line = []
+    for key, items in dictionary.items():
+        for i in range(len(dictionary[key])):
+            for k in range(len(dictionary)):
+                print_line.append(str(dictionary[list(dictionary)[k]][i]))
+            outval.write(", ".join(print_line)+'\n')
+            print_line.clear()
+    outval.close()
+
+def blc_dict(dictionary):
+    blc = {}
+    for key , items in file_dat.items():
+        if key == 'Time':
+            blc['Time'] = tuple(file_dat['Time'])
+        else:
+            blc[key]=tuple(remove_baseline_wander(file_dat[key], 2000.0))
+    return blc
+
+
+# direct copy from HeartPy source code (start)------------------
+
+__all__ = ['filter_signal',
+           'hampel_filter',
+           'hampel_correcter',
+           'smooth_signal']
+
+def butter_lowpass(cutoff, sample_rate, order=2):
+    nyq = 0.5 * sample_rate
+    normal_cutoff = cutoff / nyq
+    b, a = butter(order, normal_cutoff, btype='low', analog=False)
+    return b, a
+def butter_highpass(cutoff, sample_rate, order=2):
+    nyq = 0.5 * sample_rate
+    normal_cutoff = cutoff / nyq
+    b, a = butter(order, normal_cutoff, btype='high', analog=False)
+    return b, a
+
+def butter_bandpass(lowcut, highcut, sample_rate, order=2):
+    nyq = 0.5 * sample_rate
+    low = lowcut / nyq
+    high = highcut / nyq
+    b, a = butter(order, [low, high], btype='band')
+    return b, a
+
+def filter_signal(data, cutoff, sample_rate, order=2, filtertype='highpass', return_top = False):       # changed 'lowpass' to 'highpass' for more accuracy
+    if filtertype.lower() == 'lowpass':
+        b, a = butter_lowpass(cutoff, sample_rate, order=order)
+    elif filtertype.lower() == 'highpass':
+        b, a = butter_highpass(cutoff, sample_rate, order=order)
+    elif filtertype.lower() == 'bandpass':
+        assert type(cutoff) == tuple or list or np.array, 'if bandpass filter is specified, \
+cutoff needs to be array or tuple specifying lower and upper bound: [lower, upper].'
+        b, a = butter_bandpass(cutoff[0], cutoff[1], sample_rate, order=order)
+    elif filtertype.lower() == 'notch':
+        b, a = iirnotch(cutoff, Q = 0.005, fs = sample_rate)
+    else:
+        raise ValueError('filtertype: %s is unknown, available are: \
+lowpass, highpass, bandpass, and notch' %filtertype)
+
+    filtered_data = filtfilt(b, a, data)
+    
+    if return_top:
+        return np.clip(filtered_data, a_min = 0, a_max = None)
+    else:
+        return filtered_data
+    
+def remove_baseline_wander(data, sample_rate, cutoff=0.05):
+    return filter_signal(data = data, cutoff = cutoff, sample_rate = sample_rate, filtertype='notch')
+
+# direct copy from HeartPy source code (end)------------------
+
+
 
 
 ## Program begins
@@ -164,80 +242,51 @@ print('Done pulling data')
 csv.close()
 
 
-# direct copy from HeartPy source code (start)------------------
+print('\nWhich set of data would you like to print to out file\n 1) Original, unaltered data \n 2) Data with baseline correction')
+while True:
+    op1 = int(input('Choice: '))
+    if op1 in (1,2):
+        break
+    print('Invalid selection')
 
-__all__ = ['filter_signal',
-           'hampel_filter',
-           'hampel_correcter',
-           'smooth_signal']
 
-def butter_lowpass(cutoff, sample_rate, order=2):
-    nyq = 0.5 * sample_rate
-    normal_cutoff = cutoff / nyq
-    b, a = butter(order, normal_cutoff, btype='low', analog=False)
-    return b, a
-def butter_highpass(cutoff, sample_rate, order=2):
-    nyq = 0.5 * sample_rate
-    normal_cutoff = cutoff / nyq
-    b, a = butter(order, normal_cutoff, btype='high', analog=False)
-    return b, a
+if op1 == 1:
+    out = open(patient+'_concat.csv','w')
+    print_dict(file_dat,out)
+    data_pref = file_dat
+    title = 'Unaltered'
+if op1 == 2:
+    out = open(patient+'_concat_blc.csv','w')
+    blc = blc_dict(file_dat)
+    print_dict(blc,out)
+    data_pref = blc
+    file_dat.clear()
+    title = 'Baseline corrected'
 
-def butter_bandpass(lowcut, highcut, sample_rate, order=2):
-    nyq = 0.5 * sample_rate
-    low = lowcut / nyq
-    high = highcut / nyq
-    b, a = butter(order, [low, high], btype='band')
-    return b, a
+print('Data printed to oufile')
 
-def filter_signal(data, cutoff, sample_rate, order=2, filtertype='highpass', return_top = False):       # changed 'lowpass' to 'highpass' for more accuracy
-    if filtertype.lower() == 'lowpass':
-        b, a = butter_lowpass(cutoff, sample_rate, order=order)
-    elif filtertype.lower() == 'highpass':
-        b, a = butter_highpass(cutoff, sample_rate, order=order)
-    elif filtertype.lower() == 'bandpass':
-        assert type(cutoff) == tuple or list or np.array, 'if bandpass filter is specified, \
-cutoff needs to be array or tuple specifying lower and upper bound: [lower, upper].'
-        b, a = butter_bandpass(cutoff[0], cutoff[1], sample_rate, order=order)
-    elif filtertype.lower() == 'notch':
-        b, a = iirnotch(cutoff, Q = 0.005, fs = sample_rate)
-    else:
-        raise ValueError('filtertype: %s is unknown, available are: \
-lowpass, highpass, bandpass, and notch' %filtertype)
 
-    filtered_data = filtfilt(b, a, data)
+while True:
+    op2 = input('\nWould you like to print a chart? (Y/N) ').upper()
+    if op2 in ('Y','N'):
+        break
+    print('Invalid selection')
     
-    if return_top:
-        return np.clip(filtered_data, a_min = 0, a_max = None)
-    else:
-        return filtered_data
-    
-def remove_baseline_wander(data, sample_rate, cutoff=0.05):
-    return filter_signal(data = data, cutoff = cutoff, sample_rate = sample_rate, filtertype='notch')
+if op2 == 'Y':
+    print('Plotting points')
 
+    plots = len(data_pref)-1
+    fig = make_subplots(rows=len(data_pref)-1, cols=1, shared_xaxes=True, vertical_spacing=0.02)
 
-# direct copy from HeartPy source code (end)------------------
+    for key, items in data_pref.items():
+        if key != 'Time':
+            fig.add_trace(go.Scatter(x=data_pref['Time'][0::4],y=data_pref[key][0::4],name='Unedited '+key, line=dict(color='royalblue')),row=plots, col=1)
+            fig.update_yaxes(title_text=key, row=plots, col=1)
+            plots += (-1)
+    data_pref.clear()
+    fig.update_layout(title_text=title+' data from '+patient+'.csv and '+patient+'.hdr')
 
-
-
-
-
-
-print('Plotting points')
-
-plots = len(file_dat)-1
-fig = make_subplots(rows=len(file_dat)-1, cols=1, shared_xaxes=True, vertical_spacing=0.02)
-
-for key, items in file_dat.items():
-    if key != 'Time':
-        fig.add_trace(go.Scatter(x=file_dat['Time'][0::4],y=file_dat[key][0::4],name='Unedited '+key, line=dict(color='rgb(251,180,174)')),row=plots, col=1)
-        fig.add_trace(go.Scatter(x=file_dat['Time'][0::4],y=remove_baseline_wander(file_dat[key], 2000.0)[0::4],name='Corrected '+key, line=dict(color='royalblue')),row=plots, col=1)
-        file_dat[key].clear()
-        fig.update_yaxes(title_text=key, row=plots, col=1)
-        plots += (-1)
-file_dat.clear()
-fig.update_layout(title_text='Data from '+patient+'.csv and '+patient+'.hdr')
-
-print('Printing graph')
-plotly.offline.plot(fig, filename=patient+'_blc.html')
+    print('Printing graph')
+    plotly.offline.plot(fig, filename=patient+'.html')
 
 print('Done')
