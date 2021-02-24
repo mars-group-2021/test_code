@@ -254,14 +254,14 @@ if op1 == 1:
     out = open(patient+'_concat.csv','w')
     print_dict(file_dat,out)
     data_pref = file_dat
-    title = 'Unaltered'
+    title = 'Unaltered '
 if op1 == 2:
     out = open(patient+'_concat_blc.csv','w')
     blc = blc_dict(file_dat)
     print_dict(blc,out)
     data_pref = blc
     file_dat.clear()
-    title = 'Baseline corrected'
+    title = 'Baseline corrected '
 
 print('Data printed to oufile')
 
@@ -280,11 +280,11 @@ if op2 == 'Y':
 
     for key, items in data_pref.items():
         if key != 'Time':
-            fig.add_trace(go.Scatter(x=data_pref['Time'][0::4],y=data_pref[key][0::4],name='Unedited '+key, line=dict(color='royalblue')),row=plots, col=1)
+            fig.add_trace(go.Scatter(x=data_pref['Time'][0::4],y=data_pref[key][0::4],name=key, line=dict(color='royalblue')),row=plots, col=1)
             fig.update_yaxes(title_text=key, row=plots, col=1)
             plots += (-1)
     data_pref.clear()
-    fig.update_layout(title_text=title+' data from '+patient+'.csv and '+patient+'.hdr')
+    fig.update_layout(title_text=title+'data from '+patient+'.csv and '+patient+'.hdr')
 
     print('Printing graph')
     plotly.offline.plot(fig, filename=patient+'.html')
