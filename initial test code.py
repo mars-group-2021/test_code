@@ -4,7 +4,6 @@
 
 import datetime as dt
 import os
-from decimal import Decimal
 import numpy as np
 import heartpy as hp
 from scipy.signal import butter, filtfilt, iirnotch, savgol_filter
@@ -217,7 +216,8 @@ for line in csv:
     if not line.startswith(','): # if timestamp already given
         curr_line_time = dt.datetime.strptime(line.split(', ')[0], '%Y-%m-%d %H:%M:%S.%f %z') # current time is kept as provided
         if last_line_time != '' and curr_line_time != last_line_time + two_ms: # checks for time gap
-            print('Time gap at',line.split(', ')[0])
+            time_dif = curr_line_time - last_line_time
+            print('\n Alert:',time_dif.total_seconds(),'second gap starting at',last_line_time)
         last_line_time = curr_line_time # saves current time for reference on next line
     else: # if timestamp not already given
         last_line_time += two_ms # adds 2ms to saved reference time
@@ -225,17 +225,17 @@ for line in csv:
 
     # generates printed lines to outfile after header line
     for n in range(1,num_cols_start):
-        file_dat[list(file_dat)[n]].append(float(line.split(', ')[n].strip() or 0)) # fills in blanks with recorded values or 0 where data was not recorded
+        file_dat[list(file_dat)[n]].append(float(line.split(', ')[n].strip() or 0.5)) # fills in blanks with recorded values or 0 where data was not recorded
     if aligned == 'no':
         for n in range(num_cols_mis):
             if len(line.split(', ')) < num_nodes +1: # if empty columns exist
-                file_dat[list(file_dat)[num_cols_start+n]].append(0) # fills in blanks with 0 where columns are empty
+                file_dat[list(file_dat)[num_cols_start+n]].append(0.5) # fills in blanks with 0 where columns are empty
             else:
-                file_dat[list(file_dat)[num_cols_start+n]].append(float((line.split(', ')[num_cols_start+n].strip() or 0))) # fills in blanks with recorded values or 0 where data was not recorded
+                file_dat[list(file_dat)[num_cols_start+n]].append(float((line.split(', ')[num_cols_start+n].strip() or 0.5))) # fills in blanks with recorded values or 0 where data was not recorded
 
     if len(nodes_4ms) > 0: #if there are any 4ms nodes
         for node in nodes_4ms:
-            if len(file_dat[list(file_dat)[node]])>3 and file_dat[list(file_dat)[node]][-2] == 0 and file_dat[list(file_dat)[node]][-1] != 0:
+            if len(file_dat[list(file_dat)[node]])>3 and file_dat[list(file_dat)[node]][-2] == 0.5 and file_dat[list(file_dat)[node]][-1] != 0.5:
                 file_dat[list(file_dat)[node]][-2] = (file_dat[list(file_dat)[node]][-3]+file_dat[list(file_dat)[node]][-1])/2
                     
 print('Done pulling data')
