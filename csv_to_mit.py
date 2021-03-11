@@ -29,6 +29,7 @@ from wfdb.io.tff import rdtff
 csv_name= input("Enter csv name: ")
 hdr_name= input("Enter hdr name: ")
 
+#function
 #name new csv file
 position = csv_name.find('.')
 strip_pos=len(csv_name)-position
@@ -37,43 +38,62 @@ if (position != -1):
 else:
     new_csv_name = csv_name + ".csv"
 
+
+#Function
 csv=open(csv_name)
 #find the date and time
 #we might not need it, but it's good to have it just in case
+
 for inline in csv:
     if (re.match ("^([0-9]{4})", inline)):
         timeline = inline
     else:
         break
+    
 #split it into a list using comma as delineator
-firstline = timeline.split(',')
 
+firstline = timeline.split(',')
 starttimestring = firstline[0]
 starttimeparts = re.search("(.+) [\S]*$",starttimestring)
 starttime = starttimeparts.group(1)
-print(starttime)
+#split time and date into list using space as delineator
+time_parts=starttime.split(' ')
+time=time_parts[1]
+date=time_parts[0]
+print("time: ", time, "date: ", date)
 csv.close()
 
-#NOTE:I've tried doing this portion with csv reader, but it doesn't like to work with wfdb.io for some reason
+#extract information from hdr file
+ids=[]
+labels=[]
+units=[]
+frequency=[]
+hdr=open(hdr_name)
+for line in hdr:
+    parts = line.split(",")
+    ids.append(parts[0].strip("{id: "))
+    labels.append(parts[1].strip("label: "))
+    units.append(parts[2].strip("unit: "))
+    frequency.append(parts[3].strip("period: ").strip(" ms}\n"))
 
-#remove first column
-df=pd.read_csv(csv_name, index_col=None, usecols=[1,2], low_memory=False)
+#remove first column from csv, add headers
+df=pd.read_csv(csv_name, header=None, names=labels, low_memory=False)
 df_mod=df.apply(pd.to_numeric, errors='coerce')
-df_mod.to_csv(new_csv_name)
-#some issues with the output:
-##it adds an index column. I can't figure out how to get rid of it
-###i've tried removing the index_col parameter and that doesn't help
-##it keeps changing the first value in the second column to -40.46.1 
+df_mod.to_csv(new_csv_name, index=False)
 
 #to find data types, run the next two lines.
 ##datatypes=df.dtypes
 ##print(datatypes)
 #datatypes with our csv and with the model csv were the same. no idea what's wrong
 
+#determine sample frequency:
+frequency = [int(i) for i in frequency]
+sample_frequency = 0
+for fs in frequency:
+    if fs > sample_frequency:
+        sample_frequency = fs
+hz= 1000//sample_frequency
 
 #convert csv to hea & dat
-#can parse out units from hdr file
-#this works on the practice csv, but not ours.
-#fs is sample frequency. Not provided. 360 is the most common i've seen.
-#wfdb.csv2mit(new_csv_name,fs=360, units='mV')
-
+#this works on the practice csv, but not ours.   
+wfdb.io.csv2mit(new_csv_name,fs=hz, units=units)
