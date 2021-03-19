@@ -57,23 +57,41 @@ def findtimedate(file_name):
     starttimeparts = re.search("(.+) [\S]*$",starttimestring)
     #single out the first part of the list (date and time)
     starttime = starttimeparts.group(1)
-    #split time and date into list using space as delineator
+    #split time and date into list using space as delineator & assign to variables
     time_parts=starttime.split(' ')
     time=time_parts[1]
     date=datetime.datetime.strptime(time_parts[0],"%Y-%m-%d").date().strftime("%d/%m/%Y")
     csv.close()
     return(time, date)
 
-#turn dataframe columns to list, replace empty cells with 0.1
+#find next valid value in the column
+def findnextvalue(column, position):
+    value = column[position]
+    while value  == ' ':
+        position += 1
+        value = column[position]
+    return value
+        
+#turn dataframe columns to list, replace empty cells with...
 def repaircolumn(column):
     newcolumn=[]
+    position = 0
     for value in column:
         if value == ' ':
-            newcolumn.append(0)
+            position+=1
+            nextvalue = float(findnextvalue(column, position))
+            #find average of last value and next valid value
+            newvalue = (currentvalue + nextvalue)/2
+            #append the new value to the list
+            newcolumn.append(newvalue)
         elif type(value)==float:
             newcolumn.append(value)
+            currentvalue=value
+            position+=1
         else:
             newcolumn.append(float(value.strip()))
+            currentvalue=float(value)
+            position+=1
     return newcolumn
 
 #determine sample frequency:
@@ -99,12 +117,14 @@ hdrcolumns=hdrparse(hdr_name)
 print("IDS: ", ids)
 print("Units: ", units)
 print("frequency: ", frequency)
+
 #find new csv name
 new_csv_name = namecsv(csv_name)
 #extract date and time from csv
 timedate=findtimedate(csv_name)
 #unpack tuple
 (time, date)=timedate
+
 #read original csv into dataframe
 numbers=[]
 for n in range(1,(len(ids)+1)):
