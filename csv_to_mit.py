@@ -72,7 +72,7 @@ def findnextvalue(column, position):
         value = column[position]
     return value
         
-#turn dataframe columns to list, replace empty cells with...
+#turn dataframe columns to list, replace empty cells with average of last value and next value
 def repaircolumn(column):
     newcolumn=[]
     position = 0
@@ -112,6 +112,7 @@ hdr_name = input("Enter hdr name: ")
 
 #extract info from hdr
 hdrcolumns=hdrparse(hdr_name)
+
 #unpack tuple
 (ids, units, frequency)=hdrcolumns
 print("IDS: ", ids)
@@ -120,10 +121,12 @@ print("frequency: ", frequency)
 
 #find new csv name
 new_csv_name = namecsv(csv_name)
+
 #extract date and time from csv
-timedate=findtimedate(csv_name)
+timedate = findtimedate(csv_name)
+
 #unpack tuple
-(time, date)=timedate
+(time, date) = timedate
 
 #read original csv into dataframe
 numbers=[]
@@ -134,8 +137,10 @@ try:
     df=pd.read_csv(csv_name, header=None, names=ids, usecols=numbers, low_memory=False)
 except:
     print("An error occured reading the csv file.")
+    
 #create new dataframe
 df_mod=pd.DataFrame()
+
 #cycle columns from data frame through repair function
 for columnname in ids:
     print("Working on column ", columnname)
@@ -151,6 +156,7 @@ sfreq = samplefrequency(frequency)
 
 #turn dataframe into a csv
 df_mod.to_csv(new_csv_name, index=False)
+
 #convert csv file to hea and dat
 print("Converting to MIT format")
 try:
