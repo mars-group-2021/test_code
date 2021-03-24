@@ -86,7 +86,7 @@ def findnextvalue(column, position, currentvalue):
 def repaircolumn(column):
     newcolumn=[]
     position = 0
-    current value = 0
+    currentvalue = 0
     for value in column:
         if value == ' ':
             position+=1
