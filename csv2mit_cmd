@@ -73,10 +73,13 @@ def findtimedate(file_name):
 
 #find next valid value in the column
 def findnextvalue(column, position, currentvalue):
-    value = column[position]
+    if position >= len(column):
+        value = currentvalue
+    else:
+        value = column[position]
     while value  == ' ':
         position += 1
-        if position > len(column):
+        if position >= len(column):
             value = currentvalue
         else:
             value = column[position]
