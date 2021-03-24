@@ -77,12 +77,12 @@ def findnextvalue(column, position, currentvalue):
         value = currentvalue
     else:
         value = column[position]
-    while value  == ' ':
-        position += 1
-        if position >= len(column):
-            value = currentvalue
-        else:
-            value = column[position]
+        while value  == ' ':
+            position += 1
+            if position >= len(column):
+                value = currentvalue
+            else:
+                value = column[position]
     return value
         
 #replace empty cells with average of last value and next value
