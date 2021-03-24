@@ -169,7 +169,8 @@ sfreq = samplefrequency(frequency)
 df_mod.to_csv(new_csv_name, index=False)
 #convert csv file to hea and dat
 print("Converting to MIT format")
-try:
-    wfdb.io.csv2mit(new_csv_name,fs=sfreq, units=units, samps_per_frame=1, base_time=time, base_date=date)
-except:
-    print("An error occurred when converting to MIT format")
+wfdb.io.csv2mit(new_csv_name,fs=sfreq, units=units, samps_per_frame=1, base_time=time, base_date=date)
+#try:
+#    wfdb.io.csv2mit(new_csv_name,fs=sfreq, units=units, samps_per_frame=1, base_time=time, base_date=date)
+#except:
+#    print("An error occurred when converting to MIT format")
