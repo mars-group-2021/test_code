@@ -35,9 +35,9 @@ def namecsv(file_name):
     position = file_name.find('.')
     strip_pos=len(file_name)-position
     if (position != -1):
-        new_csv_name = file_name[:-strip_pos] +"_new" + ".csv"
+        new_csv_name = file_name[:-strip_pos] +"_new.csv"
     else:
-        new_csv_name = file_name + ".csv"
+        new_csv_name = file_name + "_new.csv"
     return new_csv_name
 
 #find date and time
