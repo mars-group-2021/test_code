@@ -35,9 +35,9 @@ def namecsv(file_name):
     position = file_name.find('.')
     strip_pos=len(file_name)-position
     if (position != -1):
-        new_csv_name = file_name[:-strip_pos] +"_new.csv"
+        new_csv_name = file_name[:-strip_pos] +"_new" + ".csv"
     else:
-        new_csv_name = file_name + "_new.csv"
+        new_csv_name = file_name + ".csv"
     return new_csv_name
 
 #find date and time
@@ -84,13 +84,14 @@ def findnextvalue(column, position, currentvalue):
             else:
                 value = column[position]
     return value
-        
+
 #replace empty cells with average of last value and next value
 def repaircolumn(column):
     newcolumn=[]
     position = 0
     currentvalue = 0
     for value in column:
+        #if spot is empty, average of last valid value and next valid value is added
         if value == ' ':
             position+=1
             nextvalue = float(findnextvalue(column, position, currentvalue))
@@ -98,33 +99,83 @@ def repaircolumn(column):
             newvalue = (currentvalue + nextvalue)/2
             #append the new value to the list
             newcolumn.append(newvalue)
+        #if value is a float, it is added to new list
         elif type(value)==float:
             newcolumn.append(value)
             currentvalue=value
             position+=1
+        #if value is a string, any white spaces are removed and it is coverted to an integer
         else:
             newcolumn.append(float(value.strip()))
             currentvalue=float(value)
             position+=1
     return newcolumn
 
-#determine sample frequency:
+#determine sampling period
+#if sample periods are different between nodes, the shorter of the two is used
 def samplefrequency(frequency_list):
+    #convert strings to integers
     frequency_list = [int(i) for i in frequency_list]
     sample_frequency = 2000000
     for fs in frequency:
         if fs < sample_frequency:
             sample_frequency = fs
-    hz= 1000//sample_frequency
-    return hz
+    return sample_frequency
+
+#remove rows that are not at 8ms intervals
+def time_correction_remove(sample_period, column):
+    #find number of samples to be removed
+    c_factor = 8/sample_period
+    #new list
+    new_column=[]
+    i=0
+    #remove rows that whose indexes are not divisible by number of samples to be removed
+    while i < len(column):
+        if i%c_factor==0:
+            new_column.append(column[i])
+            i+=1
+        else:
+            i+=1
+    return new_column
 
 
+#extrapolates from data to find projected intermediate values
+def time_correction_add(sample_period, column):
+    values_to_add = sample_period/8
+    new_column = []
+    i=0
+    j=1
+    #add first value of the column to new column
+    new_column.append(column[i])
+    while j < len(column):
+        #number of values to add between first and second values in column 
+        y=values_to_add-1
+        while y > 0:
+            #first value
+            val1 = new_column[i]
+            #second value
+            val2 = column[j]
+            #average of first and second values
+            new_val = (val1+val2)/2
+            #add average to new list
+            new_column.append(new_val)
+            #one less value to add to list
+            y-=1
+            #increase index value for the new list
+            i+=1
+        #add the second value from the first list to the new list
+        new_column.append(column[j])
+        #increase index in new list
+        i+=1
+        #increase index in first list
+        j+=1
+    return new_column
 
 ##main
-csv_name = sys.argv[2] #"a.csv"
-print("csv file is ", csv_name)
-hdr_name = sys.argv[1] #"a.hdr"
+hdr_name = sys.argv[1] 
 print("hdr file is ", hdr_name)
+csv_name = sys.argv[2] 
+print("csv file is ", csv_name)
 
 #extract info from hdr
 hdrcolumns=hdrparse(hdr_name)
@@ -150,6 +201,10 @@ try:
     df=pd.read_csv(csv_name, header=None, names=ids, usecols=numbers, low_memory=False)
 except:
     print("An error occured reading the csv file.")
+
+#find lowest time period:
+period = samplefrequency(frequency)
+
 #create new dataframe
 df_mod=pd.DataFrame()
 #cycle columns from data frame through repair function
@@ -157,19 +212,28 @@ for columnname in ids:
     print("Working on column ", columnname)
     #extract column from dataframe
     columnlist=df[columnname].tolist()
-    #new column with no missing values
-    repairedcolumn = repaircolumn(columnlist)
+    #set time interval to 8ms
+    #remove or add intervals as necessary
+    if period < 8:
+        intermediate_column=time_correction_remove(period, columnlist)
+        #new column with no missing values
+        repairedcolumn = repaircolumn(columnlist)
+    elif period > 8:
+        intermediate_column = repaircolumn(columnlist)
+        repairedcolumn = time_correction_add(period, columnlist)
+    else:
+        repairedcolumn = repaircolumn(columnlist)
     #add repaired column to new dataframe
     df_mod[columnname] = repairedcolumn
 
-#find sample frequency
-sfreq = samplefrequency(frequency)
+#find sample frequency for 8ms
+sfreq = 1000/8
 
 #turn dataframe into a csv
 df_mod.to_csv(new_csv_name, index=False)
 #convert csv file to hea and dat
 print("Converting to MIT format")
 try:
-    wfdb.io.csv2mit(new_csv_name,fs=sfreq, units=units, samps_per_frame=1, base_time=time, base_date=date)
+    wfdb.io.csv2mit(new_csv_name, fs=sfreq, units=units, samps_per_frame=1, base_time=time, base_date=date)
 except:
     print("An error occurred when converting to MIT format")
