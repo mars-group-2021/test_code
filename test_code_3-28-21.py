@@ -336,7 +336,7 @@ def flat_peak_reduct(lst):
     v_end = None
     ss_check1 = 'N'
     ss_check2 = 'N'
-    scale_max = 3
+    scale_max = 5
     ss_1 = 0
     
     for i, v in enumerate(lst):
@@ -413,7 +413,7 @@ def tall_peak_reduct(lst):
     v_end = None
     ss_check1 = 'N'
     ss_check2 = 'N'
-    scale_max = 2
+    scale_max = 5
     ss_1 = 0
 
     samp_start = None  #placeholder for the starting index of sample selection
