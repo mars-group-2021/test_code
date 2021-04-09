@@ -1,5 +1,6 @@
-# The Working Repo of the MARS Group Capstone Project
-### Jeffrey Day, Maura Franz, Hilary Mehler, Stephen Panossian, & Analia Treviño-Flitton
+# The Working Repo of the MARS Group
+#### BIOT 670 Bioinformatics Capstone
+### Jeffrey Day, Maura Franz, Alex Mancera, Hilary Mehler, Stephen Panossian, & Analia Treviño-Flitton
 #### Dr. Wolfgang Rumpf 
 #### University of Maryland Global Campus
 #### Dr. Will Ray
